@@ -1,0 +1,225 @@
+# MongoDB Compound Index
+
+## 1. What is an Index?
+
+An index is a data structure used by MongoDB to make searching/querying faster.
+
+MongoDB indexes use a **B-Tree** structure.
+
+Example:
+
+```js
+user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "user",
+    index: true
+}
+```
+
+This creates a **single-field index** on `user`.
+
+---
+
+## 2. What is a Compound Index?
+
+A **compound index** is an index created using **multiple fields**.
+
+Syntax:
+
+```js
+accountSchema.index({ user: 1, status: 1 })
+```
+
+Here:
+
+* `user` = first indexed field
+* `status` = second indexed field
+* `1` = ascending order
+* `-1` = descending order
+
+---
+
+## 3. Example
+
+```js
+accountSchema.index({ user: 1, status: 1 })
+```
+
+This is useful for queries such as:
+
+```js
+accountModel.find({
+    user: userId,
+    status: "ACTIVE"
+})
+```
+
+MongoDB can use the compound index to find matching accounts faster.
+
+---
+
+## 4. Order of Fields Matters
+
+For:
+
+```js
+{ user: 1, status: 1 }
+```
+
+`user` is the **prefix** of the index.
+
+Therefore, this can also help with:
+
+```js
+{ user: userId }
+```
+
+But an index:
+
+```js
+{ user: 1, status: 1 }
+```
+
+is mainly designed for queries starting with `user`.
+
+---
+
+## 5. Single Index vs Compound Index
+
+### Single Index
+
+```js
+accountSchema.index({ user: 1 })
+```
+
+Index contains only:
+
+```text
+user
+```
+
+### Compound Index
+
+```js
+accountSchema.index({ user: 1, status: 1 })
+```
+
+Index contains:
+
+```text
+user → status
+```
+
+---
+
+## 6. In Our Account Schema
+
+```js
+accountSchema.index({ user: 1, status: 1 })
+```
+
+means:
+
+> MongoDB creates an index based on `user` first and `status` second.
+
+Useful for:
+
+```js
+find({ user: userId })
+```
+
+and:
+
+```js
+find({
+    user: userId,
+    status: "ACTIVE"
+})
+```
+
+---
+
+## 7. Important Point
+
+If we already have:
+
+```js
+user: {
+    type: mongoose.Schema.Types.ObjectId,
+    index: true
+}
+```
+
+and also:
+
+```js
+accountSchema.index({ user: 1, status: 1 })
+```
+
+then we have:
+
+```text
+{ user: 1 }              → Single index
+{ user: 1, status: 1 }   → Compound index
+```
+
+The compound index can also support queries using only `user` because `user` is the first field.
+
+Therefore, having both indexes may be unnecessary depending on the application's queries.
+
+## Interview Definition
+
+**Compound Index:** An index created on two or more fields to efficiently execute queries that use those fields together.
+
+Example:
+
+```js
+accountSchema.index({ user: 1, status: 1 })
+```
+
+= Compound index on `user` and `status`.
+
+
+### Session in MongoDB — Notes
+
+A **session** is a mechanism provided by MongoDB/Mongoose that allows MongoDB to **track a series of database operations together**.
+
+It is commonly used when performing **transactions**, where multiple operations should be treated as one unit.
+
+```js
+const session = await mongoose.startSession();
+```
+
+This creates a new MongoDB session.
+
+```js
+session.startTransaction();
+```
+
+This starts a transaction within that session.
+
+**Example:** In a money transfer:
+
+```text
+Debit Account A
+      +
+Credit Account B
+      ↓
+Both operations belong to the same session
+      ↓
+Success → COMMIT
+Failure → ABORT / ROLLBACK
+```
+
+### Key points
+
+* **Session** → tracks related database operations.
+* **Transaction** → groups operations into one atomic unit.
+* `{ session }` → tells MongoDB that an operation belongs to that session.
+* `commitTransaction()` → saves all changes.
+* `abortTransaction()` → rolls back all changes.
+* `endSession()` → closes the session.
+
+**In short:**
+
+> A MongoDB session provides a context for executing and tracking database operations, especially multiple operations that need to be handled together in a transaction.
